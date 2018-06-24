@@ -1,0 +1,188 @@
+// === chapter 3 ======
+
+/* Listing 3-1 */
+val stringList = Array(“Spark is awesome”,”Spark is cool”)
+val stringRDD = spark.sparkContext.parallelize(stringList)
+
+
+/* Listing 3-2 */
+val fileRDD = spark.sparkContext.textFile(“/tmp/data.txt”)
+
+/* Listing 3-3 */
+val allCapsRDD = stringRDD.map(line => line.toUpperCase)
+allCapsRDD.collect().foreach(println)
+
+/* Listing 3-5 */
+def toUpperCase(line:String) : String = {  line.toUpperCase }
+stringRDD.map(l => toUpperCase(l)).collect.foreach(println)
+
+/* Listing 3-6 */
+case class Contact(id:Long, name:String, email:String)
+val contactData = Array("1#John Doe#jdoe@domain.com","2#Mary Jane#mjane@domain.com")
+val contactDataRDD = spark.sparkContext.parallelize(contactData)
+val contactRDD = contactDataRDD.map(l => {
+         val contactArray = l.split("#")
+         Contact(contactArray(0).toLong, contactArray(1), contactArray(2))
+})
+contactRDD.collect.foreach(println)
+
+/* Listing 3-8 */
+val stringLenRDD = stringRDD.map(l => l.length)
+stringLenRDD.collect.foreach(println)
+
+/* Listing 3-9 */
+val wordRDD = stringRDD.flatMap(line => line.split(“ “))
+wordRDD.collect().foreach(println)
+
+/* Listing 3-11 */
+stringRDD.map(line => line.split(“ “)).collect
+stringRDD.flatMap(line => line.split(“ “)).collect
+
+/* Listing 3-14 */
+val awesomeLineRDD = stringRDD.filter(line => line.contains(“awesome”))
+awesomeLineRDD.collect
+
+/* Listing 3-16 */
+import scala.util.Random
+val sampleList = Array(“One”, “Two”, “Three”, “Four”,”Five”)
+val sampleRDD = spark.sparkContext.parallelize(sampleList, 2)
+val result = sampleRDD.mapPartitions((itr:Iterator[String]) => {
+               val rand = new Random(System.currentTimeMillis + Random.nextInt)
+               itr.map(l => l + “:” + rand.nextInt)
+           }
+
+result.collect()
+
+/* Listing 3-18 */
+import scala.util.Random
+def addRandomNumber(rows:Iterator[String]) = {
+  val rand = new Random(System.currentTimeMillis + Random.nextInt)
+  rows.map(l => l + " : " + rand.nextInt)
+}
+
+/* Listing 3-19 */
+val result = sampleRDD.mapPartitions((rows:Iterator[String]) => addRandomNumber(rows))
+
+/* Listing 3-20 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.mapPartitionsWithIndex((idx:Int, itr:Iterator[Int]) => {
+         itr.map(n => (idx, n) )          
+      }).collect()
+
+
+/* Listing 3-22 */
+val rdd1 = spark.sparkContext.parallelize(Array(1,2,3,4,5))
+val rdd2 = spark.sparkContext.parallelize(Array(1,6,7,8))
+val rdd3 = rdd1.union(rdd2)
+rdd3.collect()
+
+
+/* Listing 3-24 */
+val rdd1 = spark.sparkContext.parallelize(Array(“One”, “Two”, “Three”))
+val rdd2 = spark.sparkContext.parallelize(Array(“two”,”One”,”threed”,”One”))
+val rdd3 = rdd1.intersection(rdd2)
+rdd3.collect()
+
+/* Listing 3-26 */
+val words = spark.sparkContext.parallelize(List("The amazing thing about spark is that it is very simple to learn")).flatMap(l => l.split(" ")).map(w => w.toLowerCase)
+
+val stopWords = spark.sparkContext.parallelize(List("the it is to that")).flatMap(l => l.split(" "))
+val realWords = words.substract(stopWords)
+realWords.collect()
+
+/* Listing 3-28 */
+val duplicateValueRDD = spark.sparkContext.parallelize(List("one", 1, "two", 2, "three", "one", "two", 1, 2)
+duplicateValueRDD.distinct().collect
+
+/* Listing 3-30 */
+val numbers =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numbers.sample(true, 0.3).collect
+
+/* Listing 3-32 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.collect()
+
+/* Listing 3-34 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.count()
+
+/* Listing 3-36 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.first()
+
+/* Listing 3-38 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.take(6)
+
+/* Listing 3-40 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+
+/* Listing 3-41 */
+def add(v1:Int, v2:Int) : Int = {
+      println(s"v1: $v1, v2: $v2 => (${v1 + v2})")
+      v1 + v2
+ }
+
+/* Listing 3-42 */
+numberRDD.reduce(add)
+
+/* Listing 3-44 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.takeOrdered(4)
+numberRDD.takeOrdered(4)(Ordering[Int].reverse)
+
+/* Listing 3-46 */
+val numberRDD =  spark.sparkContext.parallelize(List(1,2,3,4,5,6,7,8,9,10), 2)
+numberRDD.top(4)
+
+
+/* Listing 3.48 */
+val rdd = sc.parallelize(List("Spark","is","an", "amazing", "piece", "of","technology"))
+val pairRDD = rdd.map(w => (w.length,w))
+pairRDD.collect().foreach(println)
+
+
+
+/* Listing 3.50 */
+val rdd = sc.parallelize(List("Spark","is","an", "amazing", "piece", "of","technology"))
+val pairRDD = rdd.map(w => (w.length,w))
+val wordByLenRDD = pairRDD.groupByKey()
+wordByLenRDD.collect().foreach(println)
+
+
+/* Listing 3.52 */
+val candyTx = sc.parallelize(List(("candy1", 5.2), ("candy2", 3.5), ("candy1", 2.0), ("candy2", 6.0), ("candy3", 3.0)))
+val summaryTx = candyTx.reduceByKey((total, value) => total + value)
+summaryTx.collect().foreach(println)
+
+/* Listing 3.54 */
+val summaryByPrice = summaryTx.map(t => (t._2, t._1)).sortByKey()
+summaryByPrice.collect
+
+
+/* Listing 3.56 */
+val summaryByPrice = summaryTx.map(t => (t._2, t._1)).sortByKey(false)
+summaryByPrice.collect.foreach(println)
+
+
+/* Listing 3.58 */
+val memberTx = sc.parallelize(List((110, 50.35), (127, 305.2), (126, 211.0), (105, 6.0),(165, 31.0), (110, 40.11))) 
+val memberInfo = sc.parallelize(List((110, "a"), (127, "b"), (126, "b"), (105, "a"),(165, "c")))
+val memberTxInfo = memberTx.join(memberInfo)
+memberTxInfo.collect().foreach(println)
+
+
+/* Listing 3.60 */
+val candyTx = sc.parallelize(List(("candy1", 5.2), ("candy2", 3.5), ("candy1", 2.0), ("candy3", 6.0)))
+candyTx.countByKey()
+
+/* Listing 3.62 */
+val candyTx = sc.parallelize(List(("candy1", 5.2), ("candy2", 3.5), ("candy1", 2.0), ("candy3", 6.0)))
+candyTx.collectAsMap()
+
+/* Listing 3.64 */
+val candyTx = sc.parallelize(List(("candy1", 5.2), ("candy2", 3.5), ("candy1", 2.0), ("candy3", 6.0)))
+candyTx.lookup(“candy1”)
+candyTx.lookup(“candy2”)
+candyTx.lookup(“candy5”)
+
