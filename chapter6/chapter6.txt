@@ -21,21 +21,6 @@ object NetworkWordCount {
 }
 
 
-Spark Stuctured Streaming
-==============================
-
-phone1#open#2018-03-02 10:02:33
-phone2#open#2018-03-02 10:03:35
-phone3#open#2018-03-02 10:03:50
-phone1#close#2018-03-02 10:04:35
-
-phone3#close#2018-03-02 10:07:35
-phone4#open#2018-03-02 10:07:50
-
-phone2#close#2018-03-02 10:04:50
-phone5#open#2018-03-02 10:10:50
-
-
 /* Listing 6-2 */
 val mobileDataDF = spark.read.json("<path>/chapter6/data/mobile")
 mobileDataDF.printSchema
@@ -49,7 +34,7 @@ val mobileDataSchema = new StructType() .add("id", StringType, false) .add("acti
 
 
 /* Listing 6-4 */
-val mobileSSDF = spark.readStream.schema(mobileDataSchema).json(("/<path>/chapter6/data/input")
+val mobileSSDF = spark.readStream.schema(mobileDataSchema).json(("<path>/chapter6/data/input")
 
 
 mobileSSDF.isStreaming

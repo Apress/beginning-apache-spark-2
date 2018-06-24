@@ -352,7 +352,7 @@ spark.sql("select name, score, letterGrade(score) as grade from students").show
 /* Listing 5-47 */
 
 // rollups and cubes
-val flight_summary = spark.read.format("csv") .option("header", "true") .option("inferSchema","true") .load<path>/chapter5/data/flights/flight-summary.csv")
+val flight_summary = spark.read.format("csv") .option("header", "true") .option("inferSchema","true").load("<path>/chapter5/data/flights/flight-summary.csv")
 
 val twoStatesSummary = flight_summary.select('origin_state, 'origin_city, 'count).where('origin_state === "CA" || 'origin_state === "NY").where('count > 1 && 'count < 20).where('origin_city =!= "White Plains").where('origin_city =!= "Newburgh").where('origin_city =!= "Mammoth Lakes").where('origin_city =!= "Ontario")
 
@@ -434,7 +434,7 @@ spark.sql("select name, tx_date, amount, round(culm_sum,2) as moving_avg from (s
 
 /* Listing 5-56 */
 
-val moviesDF = spark.read.load”<path>/book/chapter4/data/movies/movies.parquet")
+val moviesDF = spark.read.load(”<path>/chapter4/data/movies/movies.parquet")
 
 val newMoviesDF = moviesDF.filter('produced_year > 1970).withColumn("produced_decade", 'produced_year + 'produced_year % 10).select('movie_title, 'produced_decade).where('produced_decade > 2010)
 

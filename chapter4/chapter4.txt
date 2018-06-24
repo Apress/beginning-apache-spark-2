@@ -82,42 +82,39 @@ textFile.show(5)
 
 
 /* Listing 4-12 */
-val movies = spark.read.option("header","true").csv("<path>/book/chapter4/data/movies/movies.csv")
+val movies = spark.read.option("header","true").csv("<path>/chapter4/data/movies/movies.csv")
 
 movies.printSchema
 
-val movies2 = spark.read.option("header","true").option("inferSchema","true")
-                          .csv("<path>/book/chapter4/data/movies/movies.csv")
+val movies2 = spark.read.option("header","true").option("inferSchema","true") .csv("<path>/chapter4/data/movies/movies.csv")
 
 movies2.printSchema
 
 import org.apache.spark.sql.types._
 val movieSchema = StructType(Array(StructField("actor_name", StringType, true), StructField("movie_title", StringType, true), StructField("produced_year", LongType, true)))
 
-val movies3 = spark.read.option("header","true").schema(movieSchema)
-                                .csv("<path>/book/chapter4/data/movies/movies.csv")
+val movies3 = spark.read.option("header","true").schema(movieSchema).csv("<path>/chapter4/data/movies/movies.csv")
 
 movies3.printSchema
 movies3.show(5)
 
 
 /* Listing 4-13 */
-val movies4 = spark.read.option("header","true").option("sep", "\t")
-                                        .schema(movieSchema).csv("<path>/book/chapter4/data/movies/movies.tsv")
+val movies4 = spark.read.option("header","true").option("sep", "\t") .schema(movieSchema).csv("<path>/chapter4/data/movies/movies.tsv")
 
 movies.printSchema
 
 
 
 /* Listing 4-14 */
-val movies5 = spark.read.json("<path>/book/chapter4/data/movies/movies.json")
+val movies5 = spark.read.json("<path>/chapter4/data/movies/movies.json")
 
 movies.printSchema
 
 import org.apache.spark.sql.types._
 val movieSchema2 = StructType(Array(StructField("actor_name", StringType, true), StructField("movie_title", StringType, true), StructField("produced_year", IntegerType, true)))
 
-val movies6 = spark.read.option("inferSchema","true").schema(movieSchema2) .json("<path>/book/chapter4/data/movies/movies.json")
+val movies6 = spark.read.option("inferSchema","true").schema(movieSchema2) .json("<path>/chapter4/data/movies/movies.json")
 
 movies6.printSchema
 
@@ -126,7 +123,7 @@ movies6.printSchema
 import org.apache.spark.sql.types._
 val badMovieSchema = StructType(Array(StructField("actor_name", BooleanType, true), StructField("movie_title", StringType, true), StructField("produced_year", IntegerType, true)))
 
-val movies7 = spark.read.schema(badMovieSchema) .json("<path>/book/chapter4/data/movies/movies.json") 
+val movies7 = spark.read.schema(badMovieSchema) .json("<path>/chapter4/data/movies/movies.json") 
 
 movies7.printSchema
 movies7.show(5)
@@ -138,17 +135,17 @@ movies8.show(5)
 
 
 /* Listing 4-16 */
-val movies9 = spark.read.load("<path>/book/chapter4/data/movies/movies.parquet")
+val movies9 = spark.read.load("<path>/chapter4/data/movies/movies.parquet")
 
 movies9.printSchema
 
 
-val movies10 = spark.read.parquet("<path>/book/chapter4/data/movies/movies.parquet")
+val movies10 = spark.read.parquet("<path>/chapter4/data/movies/movies.parquet")
 
 movies10.printSchema
 
 /* Listing 4-17 */
-val movies11 = spark.read.orc("<path>/book/chapter4/data/movies/movies.orc")
+val movies11 = spark.read.orc("<path>/chapter4/data/movies/movies.orc")
 
 movies11.printSchema
 movies11.show(5)

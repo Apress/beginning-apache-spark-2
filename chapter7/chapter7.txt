@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions._
 val mobileDataSchema = new StructType() .add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
 
 
-val mobileSSDF = spark.readStream.schema(mobileDataSchema) .json("<path>/chapter6/data/input")
+val mobileSSDF = spark.readStream.schema(mobileDataSchema) .json("<path>/chapter7/data/input")
 
 
 val windowCountDF = mobileSSDF.groupBy(window($"ts", "10 minutes")).count
@@ -233,11 +233,11 @@ import org.apache.spark.sql.functions._
 val mobileDataSchema = new StructType().add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
 
 // mobileDataSchema is defined in previous example
-val mobileDupSSDF = spark.readStream.schema(mobileDataSchema) .json("<path>/chapter7/data/deduplication")
+val mobileDupSSDF = spark.readStream.schema(mobileDataSchema).json("<path>/chapter7/data/deduplication")
 
-val windowCountDupDF = mobileDupSSDF.withWatermark("ts", "10 minutes") .dropDuplicates("id", "ts") .groupBy("id").count
+val windowCountDupDF = mobileDupSSDF.withWatermark("ts", "10 minutes").dropDuplicates("id", "ts") .groupBy("id").count
 
-val mobileMemoryDupSQ = windowCountDupDF.writeStream                   .format("console") .option("truncate", "false") .outputMode("update") .start()
+val mobileMemoryDupSQ = windowCountDupDF.writeStream.format("console") .option("truncate", "false") .outputMode("update") .start()
 
 
 /* Listing 7-20 */
