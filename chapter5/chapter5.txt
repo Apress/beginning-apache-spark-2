@@ -58,23 +58,24 @@ flight_summary.select(variance("count"), var_pop("count"), stddev("count"), stdd
 /* Listing 5-12 */
 flight_summary.groupBy("origin_airport").count().show(5, false)
 
+/* Listing 5-13 */
 // group by multiple columns
 flight_summary.groupBy('origin_state, 'origin_city).count.where('origin_state === "CA").orderBy('count.desc).show(5)
 
-/* Listing 5-13 */
+/* Listing 5-14 */
 import org.apache.spark.sql.functions._
 flight_summary.groupBy("origin_airport").agg(count("count").as("count"), min("count"), max("count"), sum("count")).show(5)
 
-/* Listing 5-14 */
+/* Listing 5-15 */
 flight_summary.groupBy("origin_airport").agg("count" -> "count", "count" -> "min", "count" -> "max", "count" -> "sum").show(5)
 
-/* Listing 5-15 */
+/* Listing 5-16 */
 val highCountDestCities = flight_summary.where('count > 5500).groupBy("origin_state").agg(collect_list("dest_city").as("dest_cities"))
 
 highCountDestCities.withColumn("dest_city_cnt", size('dest_cities)).show(5, false)
 
 
-/* Listing 5-16 */
+/* Listing 5-17 */
 import org.apache.spark.sql.Row
 case class Student(name:String, gender:String, weight:Int, graduation_year:Int)
 val studentsDF = Seq(Student("John", "M", 180, 2015), 
@@ -87,15 +88,15 @@ val studentsDF = Seq(Student("John", "M", 180, 2015),
 
 studentsDF.groupBy("graduation_year").pivot("gender").avg("weight").show()
 
-/* Listing 5-17 */
+/* Listing 5-18 */
 studentsDF.groupBy("graduation_year").pivot("gender").agg(min("weight").as("min"),max("weight").as("max"),avg("weight").as("avg")).show()
 
 
-/* Listing 5-18 */
+/* Listing 5-19 */
 studentsDF.groupBy("graduation_year").pivot("gender", Seq("M")).agg(min("weight").as("min"),max("weight").as("max"),avg("weight").as("avg")).show()
 
 
-/* Listing 5-19 */
+/* Listing 5-20 */
 case class Employee(first_name:String, dept_no:Long)
 val employeeDF = Seq( Employee("John", 31), 
                       Employee("Jeff", 33), 
@@ -116,7 +117,7 @@ val deptDF = Seq( Dept(31, "Sales"),
 employeeDF.createOrReplaceTempView("employees")
 deptDF.createOrReplaceTempView("departments")
 
-/* Listing 5-20 */
+/* Listing 5-21 */
 val deptJoinExpression = employeeDF.col("dept_no") === deptDF.col("id")
 
 employeeDF.join(deptDF, joinExpression, "inner").show
@@ -125,7 +126,7 @@ employeeDF.join(deptDF, joinExpression).show
 
 spark.sql("select * from employees JOIN departments on dept_no == id").show
 
-/* Listing 5-21 */
+/* Listing 5-22 */
 
 employeeDF.join(deptDF, 'dept_no === 'id).show
 
@@ -134,37 +135,37 @@ employeeDF.join(deptDF, employeeDF.col("dept_no") === deptDF.col("id")).show
 employeeDF.join(deptDF).where('dept_no === 'id).show
 
 
-/* Listing 5-22 */
+/* Listing 5-23 */
 employeeDF.join(deptDF, 'dept_no === 'id, "left_outer").show
 
 spark.sql("select * from employees LEFT OUTER JOIN departments on dept_no == id").show
 
-/* Listing 5-23 */
+/* Listing 5-24 */
 employeeDF.join(deptDF, 'dept_no === 'id, "right_outer").show
 
 spark.sql("select * from employees RIGHT OUTER JOIN departments on dept_no == id").show
 
-/* Listing 5-24 */
+/* Listing 5-25 */
 employeeDF.join(deptDF, 'dept_no === 'id, "outer").show
 
 spark.sql("select * from employees FULL OUTER JOIN departments on dept_no == id").show
 
-/* Listing 5-25 */
+/* Listing 5-26 */
 employeeDF.join(deptDF, 'dept_no === 'id, "left_anti").show
 
 spark.sql("select * from employees LEFT ANTI JOIN departments on dept_no == id").show
 
-/* Listing 5-26 */
+/* Listing 5-27 */
 employeeDF.join(deptDF, 'dept_no === 'id, "left_semi").show
 
 spark.sql("select * from employees LEFT SEMI JOIN departments on dept_no == id").show
 
-/* Listing 5-27 */
+/* Listing 5-28 */
 employeeDF.crossJoin(deptDF).count
 
 spark.sql("select * from employees CROSS JOIN departments").show(30)
 
-/* Listing 5-28 */
+/* Listing 5-29 */
 
 val deptDF2 = deptDF.withColumn("dept_no", 'id)
 deptDF2.printSchema
@@ -172,24 +173,24 @@ deptDF2.printSchema
 val dupNameDF = employeeDF.join(deptDF2, employeeDF.col("dept_no") === deptDF2.col("dept_no"))
 dupNameDF.printSchema
 
-/* Listing 5-29 */
+/* Listing 5-30 */
 dupNameDF.select("dept_no")
 
 
-/* Listing 5-30 */
+/* Listing 5-31 */
 dupNameDF.select(deptDF2.col("dept_no"))
 
-/* Listing 5-31 */
+/* Listing 5-32 */
 val noDupNameDF = employeeDF.join(deptDF2, "dept_no")
 noDupNameDF.printSchema
 
 
-/* Listing 5-32 */
+/* Listing 5-33 */
 import org.apache.spark.sql.functions.broadcast
 employeeDF.join(broadcast(deptDF), employeeDF.col("dept_no") === deptDF.col("id")).show
 
 
-/* Listing 5-33 */
+/* Listing 5-34 */
 val testDateTSDF = Seq((1, "2018-01-01", "2018-01-01 15:04:58:865", "01-01-2018", "12-05-2017 45:50")).toDF("id", "date", "timestamp", "date_str", "ts_str")
 
 val testDateResultDF = testDateTSDF.select(to_date('date).as("date1"), to_timestamp('timestamp).as("ts1"), to_date('date_str, "MM-dd-yyyy").as("date2"), to_timestamp('ts_str, "MM-dd-yyyy mm:ss").as("ts2"), unix_timestamp('timestamp).as("unix_ts"))
@@ -197,10 +198,10 @@ val testDateResultDF = testDateTSDF.select(to_date('date).as("date1"), to_timest
 testDateResultDF.printSchema
 testDateResultDF.show
 
-/* Listing 5-34 */
+/* Listing 5-35 */
 testDateResultDF.select(date_format('date1, "dd-MM-YYYY").as("date_str"),date_format('ts1, "dd-MM-YYYY HH:mm:ss").as("ts_str"), from_unixtime('unix_ts,"dd-MM-YYYY HH:mm:ss").as("unix_ts_str")).show
 
-/* Listing 5-35 */
+/* Listing 5-36 */
 val employeeData = Seq( 
                  ("John", "2016-01-01", "2017-10-15"), 
                  ("May", "2017-02-06", "2017-12-25")).toDF("name", "join_date", "leave_date")
@@ -213,7 +214,7 @@ val oneDate = Seq(("2018-01-01")).toDF("new_year")
 
 oneDate.select(date_add('new_year, 14).as("mid_month"), date_sub('new_year, 1).as("new_year_eve"), next_day('new_year, "Mon").as("next_mon")).show
 
-/* Listing 5-36 */
+/* Listing 5-37 */
 val valentimeDateDF = Seq(("2018-02-14 05:35:55")).toDF("date")
 valentimeDateDF.select(year('date).as("year"), quarter('date).as("quarter"),month('date).as("month"), weekofyear('date).as("woy"),dayofmonth('date).as("dom"),dayofyear('date).as("doy"),hour('date).as("hour"), minute('date).as("minute"), second('date).as("second")).show
 
@@ -233,7 +234,7 @@ dateDF.select($"id",
               $"txDate",
               datediff(current_timestamp(), $"txDate").as("num_day_ago")).show
 
-/* Listing 5-37 */
+/* Listing 5-38 */
 val sparkDF = Seq(("  Spark  ")).toDF("name")
 sparkDF.select(trim('name).as("trim"), ltrim('name).as("ltrim"), rtrim('name).as("rtrim")).show
 
@@ -245,24 +246,24 @@ sparkAwesomeDF.select(concat_ws(" ",'subject, 'verb, 'adj).as("sentence")).selec
 
 sparkAwesomeDF.select('subject, translate('subject, "ar", "oc").as("translate")).show
 
-/* Listing 5-38 */
+/* Listing 5-39 */
 val rhymeDF = Seq(("A fox saw a crow sitting on a tree singing \"Caw! Caw! Caw!\"")).toDF("rhyme")
 
 rhymeDF.select(regexp_replace('rhyme, "fox|crow", "animal").as("new_rhyme")).show(false)
 
-/* Listing 5-39 */
+/* Listing 5-40 */
 val rhymeDF = Seq(("A fox saw a crow sitting on a tree singing \"Caw! Caw! Caw!\"")).toDF("rhyme")
 
 rhymeDF.select(regexp_replace('rhyme, "[a-z]*o[xw]", "animal").as("new_rhyme")).show(false)
 
 rhymeDF.select(regexp_extract('rhyme, "[a-z]*o[xw]",0).as("substring")).show
 
-/* Listing 5-40 */
+/* Listing 5-41 */
 val numberDF = Seq((3.14159, 4.8, 2018).toDF("pie", "gpa", year")
 
 numberDF.select(round('pie).as("pie0"), round('pie, 1).as("pie1"), round('pie, 2).as("pie2"), round('gpa).as("gpa"), round('year).as("year")).show
 
-/* Listing 5-41 */
+/* Listing 5-42 */
 
 val tasksDF = Seq(("Monday", Array("Pick Up John", "Buy Milk", "Pay Bill"))).toDF("day", "tasks")
 tasksDF.printSchema
@@ -272,7 +273,7 @@ tasksDF.select('day, size('tasks).as("size"), sort_array('tasks).as("sorted_task
 tasksDF.select('day, explode('tasks)).show
 
 
-/* Listing 5-42 */
+/* Listing 5-43 */
 import org.apache.spark.sql.types._
 
 
@@ -295,13 +296,13 @@ todosDF.select('todos.getItem("day"), explode('todos.getItem("tasks"))).show
 // to json
 todosDF.select(to_json('todos)).show(false)
 
-/* Listing 5-43 */
+/* Listing 5-44 */
 val numDF = spark.range(1,11,1,5)
 numDF.rdd.getNumPartitions
 
 numDF.select('id, monotonically_increasing_id().as("m_ii"), spark_partition_id().as("partition")).show
 
-/* Listing 5-44 */
+/* Listing 5-45 */
 val dayOfWeekDF = spark.range(1,8,1)
 dayOfWeekDF.show
 
@@ -309,7 +310,7 @@ dayOfWeekDF.select('id, when('id === 1, "Mon").when('id === 2, "Tue").when('id =
 
 dayOfWeekDF.select('id, when('id === 6, "Weekend").when('id === 7, "Weekend").otherwise("Weekday").as("day_type")).show
 
-/* Listing 5-45 */
+/* Listing 5-46 */
 case class Movie(actor_name:String, movie_title:String, produced_year:Long)
 val badMoviesDF = Seq( Movie(null, null, 2018L), 
                        Movie("John Doe", "Awesome Movie", 2018L)).toDF
@@ -317,7 +318,7 @@ val badMoviesDF = Seq( Movie(null, null, 2018L),
 badMoviesDF.select(coalesce('actor_name, lit("no_name")).as("new_title")).show
 
 
-/* Listing 5-46 */
+/* Listing 5-47 */
 
 import org.apache.spark.sql.functions.udf
 
@@ -349,7 +350,7 @@ spark.sqlContext.udf.register("letterGrade",
 
 spark.sql("select name, score, letterGrade(score) as grade from students").show
 
-/* Listing 5-47 */
+/* Listing 5-48 */
 
 // rollups and cubes
 val flight_summary = spark.read.format("csv") .option("header", "true") .option("inferSchema","true").load("<path>/chapter5/data/flights/flight-summary.csv")
@@ -361,11 +362,11 @@ twoStatesSummary.show
 
 twoStateSummary.rollup('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
 
-/* Listing 5-48 */
+/* Listing 5-49 */
 twoStateSummary.cube('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
 
 
-/* Listing 5-49 */
+/* Listing 5-50 */
 val appleOneYearDF = spark.read.format("csv") .option("header", "true") .option("inferSchema","true") .load("<path>/chapter5/data/stocks/aapl-2017.csv")
 
 appleOneYearDF.printSchema
@@ -377,13 +378,13 @@ appleWeeklyAvgDF.printSchema
 appleWeeklyAvgDF.orderBy("window.start").selectExpr("window.start", "window.end", "round(weekly_avg, 2) as weekly_avg").show(5)
 
 
-/* Listing 5-50 */
+/* Listing 5-51 */
 val appleMonthlyAvgDF = appleOneYearDF.groupBy(window('Date, "4 week", "1 week")).agg(avg("Close").as("monthly_avg"))
 
 appleMonthlyAvgDF.orderBy("window.start").selectExpr("window.start", "window.end", "round(monthly_avg, 2) as monthly_avg").show(5)
 
 
-/* Listing 5-51 */
+/* Listing 5-52 */
 import org.apache.spark.sql.expressions.Window
 
 val txDataDF = Seq(("John", "2017-07-02", 13.35), ("John", "2017-07-06", 27.33), ("John", "2017-07-04", 21.72), ("Mary",  "2017-07-07", 69.74), ("Mary",  "2017-07-01", 59.44), ("Mary",  "2017-07-05", 80.14)).toDF("name", "tx_date", "amount")
@@ -396,7 +397,7 @@ val txDataWithRankDF = txDataDF.withColumn("rank", rank().over(forRankingWindow)
 txDataWithRankDF.where('rank < 3).show(10)
 
 
-/* Listing 5-52 */
+/* Listing 5-53 */
 val forEntireRangeWindow = Window.partitionBy("name").orderBy(desc("amount")).rangeBetween(Window.unboundedPreceding, Window.unboundedFollowing)
 
 val amountDifference = max(txDataDF("amount")).over(forEntireRangeWindow) - txDataDF("amount")
@@ -405,19 +406,19 @@ val txDiffWithHighestDF = txDataDF.withColumn("amount_diff", round(amountDiffere
 
 txDiffWithHighestDF.show
 
-/* Listing 5-53 */
+/* Listing 5-54 */
 val forMovingAvgWindow = Window.partitionBy("name").orderBy("tx_date").rowsBetween(Window.currentRow-1,Window.currentRow+1)
 
 val txMovingAvgDF = txDataDF.withColumn("moving_avg", round(avg("amount").over(forMovingAvgWindow), 2))
 txMovingAvgDF.show
 
-/* Listing 5-54 */
+/* Listing 5-55 */
 val forCulmulativeSumWindow = Window.partitionBy("name").orderBy("tx_date").rowsBetween(Window.unboundedPreceding,Window.currentRow)
 
 val txCulmulativeSumDF = txDataDF.withColumn("culm_sum", round(sum("amount").over(forCulmulativeSumWindow),2))
 txCulmulativeSumDF.show
 
-/* Listing 5-55 */
+/* Listing 5-56 */
 txDataDF.createOrReplaceTempView("tx_data")
 
 // top 2 transaction amount
@@ -432,7 +433,7 @@ spark.sql("select name, tx_date, amount, round(moving_avg,2) as moving_avg from 
 // culmulative sum
 spark.sql("select name, tx_date, amount, round(culm_sum,2) as moving_avg from (select name, tx_date, amount, SUM(amount) OVER (PARTITION BY name ORDER BY tx_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as culm_sum from tx_data)").show
 
-/* Listing 5-56 */
+/* Listing 5-57 */
 
 val moviesDF = spark.read.load(”<path>/chapter4/data/movies/movies.parquet")
 
@@ -440,6 +441,6 @@ val newMoviesDF = moviesDF.filter('produced_year > 1970).withColumn("produced_de
 
 newMoviesDF.explain(true)
 
-/* Listing 5-57 */
+/* Listing 5-58 */
 spark.range(1000).filter("id > 100").selectExpr("sum(id)").explain()
 
