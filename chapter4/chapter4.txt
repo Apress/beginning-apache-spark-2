@@ -1,0 +1,392 @@
+// === chapter 4 ======
+
+/* Listing 4-1 */
+import scala.util.Random
+val rdd = spark.sparkContext.parallelize(1 to 10).map(x => (x, Random.nextInt(100)* x))
+val kvDF = rdd.toDF("key","value")
+
+/* Listing 4-2 */
+kvDF.printSchema
+kvDF.show
+
+/* Listing 4-3 */
+kvDF.show(5)
+
+
+/* Listing 4-4 */
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types._
+
+val peopleRDD = spark.sparkContext.parallelize(Array(Row(1L, "John Doe",  30L),Row(2L, "Mary Jane", 25L)))
+                                                                                        Ro
+val schema = StructType(Array(
+        StructField("id", LongType, true),
+        StructField("name", StringType, true),
+        StructField("age", LongType, true)
+))
+
+val peopleDF = spark.createDataFrame(peopleRDD, schema)
+
+/* Listing 4-5 */
+peopleDF.printSchema
+peopleDF.show
+
+/* Listing 4-6 */
+val df1 = spark.range(5).toDF(“num”).show
+
+spark.range(5,10).toDF("num").show
+spark.range(5,15,2).toDF("num").show
+
+/* Listing 4-7 */
+val movies = Seq(("Damon, Matt", "The Bourne Ultimatum", 2007L), ("Damon, Matt", "Good Will Hunting", 1997L))
+
+val moviesDF = movies.toDF("actor", "title", "year")
+
+moviesDF.printSchema
+moviesDF.show
+
+/* Listing 4-8 */
+spark.read
+
+/* Listing 4-9 */
+spark.read.format(…).option(“key”, value”).schema(…).load()
+
+/* Listing 4-10 */
+spark.read.json(“<path>”)
+spark.read.format(“json”)
+
+spark.read.parquet(“<path>”)
+spark.read.format(“parquet”)
+
+spark.read.jdbc
+spark.read.format(“jdbc”)
+
+spark.read.orc(“<path>”)
+spark.read.format(“orc”)
+
+spark.read.csv(“<path>”)
+spark.read.format(“csv”)
+
+spark.read.text(“<path>”)
+spark.read.format(“text”)
+
+// custom data source – fully qualifed package name
+spark.read.format(“org.example.mysource”)
+
+
+/* Listing 4-11 */
+val textFile = spark.read.text(“README.md”)
+
+textFile.printSchema
+textFile.show(5)
+
+
+/* Listing 4-12 */
+val movies = spark.read.option("header","true").csv("<path>/chapter4/data/movies/movies.csv")
+
+movies.printSchema
+
+val movies2 = spark.read.option("header","true").option("inferSchema","true") .csv("<path>/chapter4/data/movies/movies.csv")
+
+movies2.printSchema
+
+import org.apache.spark.sql.types._
+val movieSchema = StructType(Array(StructField("actor_name", StringType, true), StructField("movie_title", StringType, true), StructField("produced_year", LongType, true)))
+
+val movies3 = spark.read.option("header","true").schema(movieSchema).csv("<path>/chapter4/data/movies/movies.csv")
+
+movies3.printSchema
+movies3.show(5)
+
+
+/* Listing 4-13 */
+val movies4 = spark.read.option("header","true").option("sep", "\t") .schema(movieSchema).csv("<path>/chapter4/data/movies/movies.tsv")
+
+movies.printSchema
+
+
+
+/* Listing 4-14 */
+val movies5 = spark.read.json("<path>/chapter4/data/movies/movies.json")
+
+movies.printSchema
+
+import org.apache.spark.sql.types._
+val movieSchema2 = StructType(Array(StructField("actor_name", StringType, true), StructField("movie_title", StringType, true), StructField("produced_year", IntegerType, true)))
+
+val movies6 = spark.read.option("inferSchema","true").schema(movieSchema2) .json("<path>/chapter4/data/movies/movies.json")
+
+movies6.printSchema
+
+
+/* Listing 4-15 */
+import org.apache.spark.sql.types._
+val badMovieSchema = StructType(Array(StructField("actor_name", BooleanType, true), StructField("movie_title", StringType, true), StructField("produced_year", IntegerType, true)))
+
+val movies7 = spark.read.schema(badMovieSchema) .json("<path>/chapter4/data/movies/movies.json") 
+
+movies7.printSchema
+movies7.show(5)
+
+val movies8 = spark.read.option("mode","failFast").schema(badMovieSchema) .json("<path>/book/chapter4/data/movies/movies.json")
+
+movies8.printSchema
+movies8.show(5)
+
+
+/* Listing 4-16 */
+val movies9 = spark.read.load("<path>/chapter4/data/movies/movies.parquet")
+
+movies9.printSchema
+
+
+val movies10 = spark.read.parquet("<path>/chapter4/data/movies/movies.parquet")
+
+movies10.printSchema
+
+/* Listing 4-17 */
+val movies11 = spark.read.orc("<path>/chapter4/data/movies/movies.orc")
+
+movies11.printSchema
+movies11.show(5)
+
+
+/* Listing 4-18 */
+ ./bin/spark-shell ../jdbc/mysql-connector-java-5.1.45/mysql-connector-java-5.1.45-bin.jar  --jars ../jdbc/mysql-connector-java-5.1.45/mysql-connector-java-5.1.45-bin.jar
+
+/* Listing 4-19 */
+import java.sql.DriverManager
+
+val connectionUrl = "jdbc:mysql://localhost:3306/sakila?user=root&password=password"
+val connection = DriverManager.getConnection(connectionUrl)
+connection.isClosed()
+connection.close()
+
+/* Listing 4-20 */
+val mysqlURL = "jdbc:mysql://localhost:3306/sakila"
+val filmDF = spark.read.format("jdbc").option("driver", "com.mysql.jdbc.Driver").option("url", mysqlURL).option("dbtable", "film").option("user", "root").option("password","password").load()
+
+filmDF.printSchema
+
+filmDF.select("film_id","title").show(5)
+
+
+/* Listing 4-21 */
+import org.apache.spark.sql.functions._
+
+val kvDF = Seq((1,2),(2,3)).toDF("key","value")
+
+kvDF.columns
+Array[String] = Array(key, value)
+
+kvDF.select(“key”)
+kvDF.select(col(“key”))
+kvDF.select(column(“key”))
+kvDF.select($”key”)
+kvDF.select(‘key)
+kvDF.select(kvDF.col(“key”))
+kvDF.select(‘key, ‘key > 1).show
+
+
+/* Listing 4-22 */
+val movies = spark.read.parquet(“<path>/chapter4/data/movies/movies.parquet")
+
+/* Listing 4-23 */
+movies.select("movie_title","produced_year").show(5)
+
+/* Listing 4-24 */
+movies.selectExpr("*","(produced_year - (produced_year % 10)) as decade").show(5)
+
+/* Listing 4-25 */
+movies.selectExpr("count(distinct(movie_title)) as movies","count(distinct(actor_name)) as actors").show
+
+/* Listing 4-26 */
+movies.filter('produced_year < 2000)
+movies.where('produced_year > 2000)
+
+movies.filter('produced_year >= 2000)
+movies.where('produced_year >= 2000)
+
+movies.filter('produced_year === 2000).show(5)
+movies.select("movie_title","produced_year").filter('produced_year =!= 2000).show(5)
+
+
+movies.filter('produced_year >= 2000 && length('movie_title) < 5).show(5)
+
+movies.filter('produced_year >= 2000).filter(length('movie_title) < 5).show(5)
+
+
+/* Listing 4-27 */
+movies.select("movie_title").distinct.selectExpr("count(movie_title) as movies").show
+movies.dropDuplicates("movie_title").selectExpr("count(movie_title) as movies").show
+
+
+/* Listing 4-28 */
+val movieTitles = movies.dropDuplicates("movie_title").selectExpr("movie_title", "length(movie_title) as title_length", "produced_year")
+
+movieTitles.sort('title_length).show(5)
+movieTitles.orderBy('title_length.desc).show(5)
+
+// order by two columns
+movieTitles.orderBy('title_length.desc, 'produced_year).show(5)
+
+/* Listing 4-29 */
+val actorNameDF = movies.select("actor_name").distinct.selectExpr("*", "length(actor_name) as length")
+
+actorNameDF.orderBy('length.desc).limit(10).show
+
+/* Listing 4-30 */
+val shortNameMovieDF = movies.where('movie_title === "12")
+shortNameMovieDF.show
+
+
+import org.apache.spark.sql.Row
+val forgottenActor = Seq(Row("Brychta, Edita", "12", 2007L))
+val forgottenActorRDD = spark.sparkContext.parallelize(forgottenActor)
+val forgottenActorDF = spark.createDataFrame(forgottenActorRDD, shortNameMovieDF.schema)
+
+
+val completeShortNameMovieDF = shortNameMovieDF.union(forgottenActorDF)
+completeShortNameMovieDF.union(forgottenActorDF).show
+
+
+/* Listing 4-31 */
+movies.withColumn("decade", ('produced_year - 'produced_year % 10)).show(5)
+
+movies.withColumn("produced_year", ('produced_year - 'produced_year % 10)).show(5)
+
+/* Listing 4-32 */
+movies.withColumnRenamed("actor_name", "actor").withColumnRenamed("movie_title", "title").withColumnRenamed("produced_year", "year").show(5)
+
+/* Listing 4-33 */
+movies.drop("actor_name", "me").printSchema
+
+
+/* Listing 4-34 */
+movies.sample(false, 0.0003).show(3)
+
+movies.sample(true, 0.0003, 123456).show(3)
+
+/* Listing 4-35 */
+val smallerMovieDFs = movies.randomSplit(Array(0.6, 0.3, 0.1))
+movies.count
+smallerMovieDFs(0).count
+smallerMovieDFs(1).count
+smallerMovieDFs(2).count
+
+
+/* Listing 4-36 */
+import org.apache.spark.sql.Row
+
+val badMovies = Seq(Row(null, null, null),Row(null, null, 2018L), Row("John Doe", "Awesome Movie", null), Row(null, "Awesome Movie", 2018L), Row("Mary Jane", null, 2018L))
+val badMoviesRDD = spark.sparkContext.parallelize(badMovies)
+val badMoviesDF = spark.createDataFrame(badMoviesRDD, movies.schema)
+badMoviesDF.show
+
+badMoviesDF.na.drop().show
+badMoviesDF.na.drop("any").show
+
+badMoviesDF.na.drop("all").show
+
+badMoviesDF.na.drop(Array("actor_name")).show
+
+/* Listing 4-37 */
+movies.describe("produced_year").show
+
+/* Listing 4-38 */
+case class Movie(actor_name:String, movie_title:String, produced_year:Long)
+val moviesDS = movies.as[Movie]
+
+// local movie objects
+val localMovies = Seq(Movie("John Doe", "Awesome Movie", 2018L), Movie("Mary Jane", "Awesome Movie", 2018L))
+
+val localMoviesDS1 = spark.createDataset(localMovies)
+
+val localMoviesDS2 = localMovies.toDS()
+localMoviesDS1.show
+
+/* Listing 4-39 */
+moviesDS.filter(movie => movie.produced_year == 2010).show(5)
+
+moviesDS.first.movie_title
+
+// misspeling movie_title
+moviesDS.first.movie_tile
+
+// map
+val titleYearDS = moviesDS.map(m => ( m.movie_title, m.produced_year))
+titleYearDS.printSchema
+
+moviesDS.map(m => ( m.movie_title, m.produced_year)).withColumnRenamed("_1", "title").withColumnRenamed("_2","year").show
+
+// to demonstrate a type-safe operation
+movies.select('movie_title - 'movie_title)
+moviesDS.map(m => m.movie_title - m.movie_title)
+
+movieDS.take(5)
+
+
+/* Listing 4-40 */
+// spark SQL
+spark.catalog.listTables.show
+
+movies.createOrReplaceTempView("movies")
+
+spark.catalog.listTables.show
+spark.catalog.listColumns("movies").show
+
+movies.createOrReplaceGlobalTempView("movies_g")
+
+val infoDF = spark.sql("select current_date() as today , 1 + 100 as value")
+infoDF.show
+
+
+// select from a view
+spark.sql("select * from movies where actor_name like '%Jolie%' and produced_year > 2009").show
+
+// select with group by and count
+spark.sql("select actor_name, count(*) as count from movies group by actor_name").where('count > 30).orderBy('count.desc).show
+
+// using sub queries
+spark.sql("""select produced_year, count(*) as count 
+             from (select distinct movie_title, produced_year from movies) 
+             group by produced_year""").orderBy('count.desc).show(5)
+
+
+spark.sql("select count(*) as count from global_temp.movies_g").show
+
+/* Listing 4-41 */
+// issue SQL query directly from a file
+spark.sql("SELECT * FROM parquet.`<path>/chapter4/data/movies/movies.parquet`").show(5)
+
+
+/* Listing 4-42 */
+movies.write
+
+/* Listing 4-43 */
+movies.write.format(…).mode(…).option(…).partitionBy(…).bucketBy(…).sortBy(…).save(path)
+
+/* Listing 4-44 */
+
+movies.write.format("csv").option("sep", "#").save("/tmp/output/csv")
+
+movies.write.format("csv").mode("overwrite").option("sep", "#").save("/tmp/output/csv")
+
+movies.write.partitionBy("produced_year").save("/tmp/output/csv")
+
+/* Listing 4-45 */
+movies.rdd.getNumPartitions
+
+/* Listing 4-46 */
+val singlePartitionDF = movies.coalesce(1)
+
+/* Listing 4-47 */
+movies.write.partitionBy("produced_year").save("/tmp/output/movies ")
+
+/* Listing 4-48 */
+
+val numDF = spark.range(1000).toDF("id")
+numDF.createOrReplaceTempView("num_df")
+
+spark.catalog.cacheTable("num_df")
+numDF.count

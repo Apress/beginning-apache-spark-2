@@ -1,0 +1,453 @@
+/* Listing 8-1 */
+import org.apache.spark.ml.feature.Binarizer
+
+val arrival_data = spark.createDataFrame(Seq(("SFO", "B737", 18, 95.1, "late"), ("SEA", "A319", 5, 65.7, "ontime"), ("LAX", "B747", 15, 31.5, "late"), ("ATL", "A319", 14, 40.5, "late") )) .toDF("origin", "model", "hour", "temperature", "arrival") 
+
+val binarizer = new Binarizer().setInputCol("temperature") .setOutputCol("freezing") .setThreshold(35.6) 
+
+binarizer.transform(arrival_data).show 
+
+// show the current values of the parameters in binarizer transformer binarizer.explainParams 
+
+inputCol: input column name (current: temperature) outputCol: output column name (default: binarizer_60430bb4e97f__output, current: freezing) threshold: threshold used to binarize continuous features (default: 0.0, current: 35.6) 
+
+// show the transformation result 
+binarizer.transform(arrival_data).select("temperature", "freezing").show
+
+/* Listing 8-2 */
+
+import org.apache.spark.ml.feature.Bucketizer
+val arrival_data  = spark.createDataFrame(Seq(("SFO", "B737", 18, 95.1, "late"), ("SEA", "A319", 5, 65.7, "ontime"), ("LAX", "B747", 15, 31.5, "late"), ("ATL", "A319", 14, 40.5, "late") )).toDF("origin", "model", "hour", "temperature", "arrival")
+
+val bucketBorders = Array(-1.0, 32.0, 70.0, 150.0)
+
+val bucketer = new Bucketizer().setSplits(bucketBorders).setInputCol("temperature").setOutputCol("intensity")
+
+val output = bucketer.transform(arrival_data)
+
+output.select("temperature", "intensity")
+          .orderBy("temperature")
+          .show
+
+
+/* Listing 8-3 */
+
+import org.apache.spark.ml.feature.OneHotEncoder
+
+val student_major_data = spark.createDataFrame(Seq(("John", "Math", 3), ("Mary", "Engineering", 2), ("Jeff", "Philosophy", 7),
+("Jane", "Math", 3), ("Lyna", "Nursing", 4) )).toDF("user", "major", "majorIdx")
+
+val oneHotEncoder = new OneHotEncoder().setInputCol("majorIdx").setOutputCol("majorVect")
+
+oneHotEncoder.transform(student_major_data).show()
+
+/* Listing 8-4 */
+import org.apache.spark.ml.feature.Tokenizer
+import org.apache.spark.sql.functions._
+
+val text_data = spark.createDataFrame(Seq((1, "Spark is a unified data analytics engine"), (2, "Spark is cool and it is fun to work with Spark"), (3, "There is a lot of exciting sessions at upcoming Spark summit"), (4, "mllib transformer estimator evaluator and pipelines")  )
+).toDF("id", "line")
+
+val tokenizer = new Tokenizer().setInputCol("line").setOutputCol("words")
+
+val tokenized = tokenizer.transform(text_data)
+
+tokenized.select("words").withColumn("tokens", size(col("words"))).show(false)
+
+/* Listing 8-5 */
+
+import org.apache.spark.ml.feature.StopWordsRemover
+val enStopWords = StopWordsRemover.loadDefaultStopWords("english")
+val remover = new StopWordsRemover().setStopWords(enStopWords) .setInputCol("words").setOutputCol("filtered")
+
+val cleanedTokens = remover.transform(tokenized)
+
+cleanedTokens.select("words","filtered").show(false)
+
+
+/* Listing 8-6 */
+import org.apache.spark.ml.feature.HashingTF
+
+val tf = new HashingTF().setInputCol("filtered").setOutputCol("TFOut").setNumFeatures(4096)
+
+val tfResult = tf.transform(cleanedTokens)
+
+tfResult.select("filtered", "TFOut").show(false)
+
+/* Listing 8-7 */
+import org.apache.spark.ml.feature.VectorAssembler
+
+val arrival_features  = spark.createDataFrame(Seq((18, 95.1, true), (5, 65.7, true), (15, 31.5, false), (14, 40.5, false) )).toDF("hour", "temperature", "on_time")
+
+val assembler = new VectorAssembler()
+.setInputCols(Array("hour", "temperature", "on_time")).setOutputCol("features")
+
+val output = assembler.transform(arrival_features)
+
+output.show
+
+/* Listing 8-8 */
+import org.apache.spark.ml.feature.RFormula
+val arrival_data = spark.createDataFrame(Seq(("SFO", "B737", 18, 95.1, "late"), ("SEA", "A319", 5, 65.7, "ontime"), ("LAX", "B747", 15, 31.5, "late"), ("ATL", "A319", 14, 40.5, "late") )) .toDF("origin", "model", "hour", "temperature", "arrival") 
+
+val formula = new RFormula().setFormula("arrival ~ . + hour:temperature") .setFeaturesCol("features") .setLabelCol("label") 
+
+// call fit function first, which returns a model (type of transformer), then call transform v
+al output = formula.fit(arrival_data).transform(arrival_data) 
+
+output.select("*").show(false)
+
+
+/* Listing 8-9 */
+import org.apache.spark.ml.feature.Tokenizer
+import org.apache.spark.ml.feature.HashingTF
+import org.apache.spark.ml.feature.IDF
+
+val text_data = spark.createDataFrame(Seq((1, "Spark is a unified data analytics engine"), (2, "Spark is cool and it is fun to work with Spark"), (3, "There is a lot of exciting sessions at upcoming Spark summit"), (4, "mllib transformer estimator evaluator and pipelines")  )
+).toDF("id", "line")
+
+val tokenizer = new Tokenizer().setInputCol("line").setOutputCol("words")
+
+val tf = new HashingTF().setInputCol("words").setOutputCol("wordFreqVect").setNumFeatures(4096)
+
+val tfResult = tf.transform(tokenizer.transform(text_data))
+
+val idf = new IDF().setInputCol("wordFreqVect").setOutputCol("features")
+
+val idfModel = idf.fit(tfResult)
+
+val weightedWords = idfModel.transform(tfResult)
+
+weightedWords.select("label", "features").show(false)
+
+/* Listing 8-10 */
+
+import org.apache.spark.ml.feature.StringIndexer 
+
+val movie_data = spark.createDataFrame(Seq((1, "Comedy"), (2, "Action"), (3, "Comedy"), (4, "Horror"), (5, "Action"), (6, "Comedy")  )
+).toDF("id", "genre")
+
+val movieIndexer = new StringIndexer() .setInputCol("genre") .setOutputCol("genreIdx").setStringOrderType("frequencyAsc")
+
+val movieIndexModel = movieIndexer.fit(movie_data)
+
+val indexedMovie = movieIndexModel.transform(movie_data)
+
+indexedMovie.orderBy("genreIdx").show()
+
+/* Listing 8-11 */
+
+import org.apache.spark.ml.feature.OneHotEncoderEstimator
+
+val oneHotEncoder = new OneHotEncoderEstimator().setInputCols(Array("genreIdx")) .setOutputCols(Array("genreIdxVector"))
+val oneHotEncoderModel = oneHotEncoder.fit(indexedMovie)
+
+val oneHotEncoderVect = oneHotEncoderModel.transform(indexedMovie)
+oneHotEncoderVect.orderBy("genre").show()
+
+/* Listing 8-12 */
+import org.apache.spark.ml.feature.Word2Vec
+
+val documentDF = spark.createDataFrame(Seq(
+  "Unified data analytics engine Spark".split(" "),
+  "People use Hive for data analytics".split(" "),
+  "MapReduce is not fading away".split(" ")
+).map(Tuple1.apply)).toDF("word")
+
+
+val word2Vec = new Word2Vec().setInputCol("word") .setOutputCol("feature") .setVectorSize(3).setMinCount(0)
+
+val model = word2Vec.fit(documentDF)
+
+val result = model.transform(documentDF)
+
+result.show(false)
+
+model.findSynonyms("Spark", 3).show
+model.findSynonyms("Hive", 3).show
+
+/* Listing 8-13 */
+import org.apache.spark.ml.feature.MinMaxScaler
+import org.apache.spark.ml.linalg.Vectors
+
+val employee_data = spark.createDataFrame(Seq((1, Vectors.dense(125400, 5.3)), (2, Vectors.dense(179100, 6.9)), (3, Vectors.dense(154770, 5.2)), (4, Vectors.dense(199650, 4.11)))).toDF("empId", "features")
+
+val minMaxScaler = new MinMaxScaler().setMin(0.0).setMax(5.0).setInputCol("features").setOutputCol("scaledFeatures")
+
+val scalerModel = minMaxScaler.fit(employee_data)
+
+val scaledData = scalerModel.transform(employee_data)
+
+println(s"Features scaled to range: [${minMaxScaler.getMin}, ${minMaxScaler.getMax}]")
+scaledData.select("features", "scaledFeatures").show(false)
+
+/* Listing 8-14 */
+
+import org.apache.spark.ml.feature.StandardScaler
+import org.apache.spark.ml.linalg.Vectors
+
+val employee_data = spark.createDataFrame(Seq((1, Vectors.dense(125400, 5.3)), (2, Vectors.dense(179100, 6.9)), (3, Vectors.dense(154770, 5.2)), (4, Vectors.dense(199650, 4.11)))).toDF("empId", "features")
+
+val standardScaler = new StandardScaler().setWithStd(true).setWithMean(true).setInputCol("features").setOutputCol("scaledFeatures")
+
+val standardMode = standardScaler.fit(employee_data)
+
+val standardData = standardMode.transform(employee_data)
+
+standardData.show(false)
+
+/* Listing 8-15 */
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.{HashingTF, Tokenizer}
+
+val text_data = spark.createDataFrame(Seq((1, "Spark is a unified data analytics engine", 0.0), (2, "Spark is cool and it is fun to work with Spark", 0.0), (3, "There is a lot of exciting sessions at upcoming Spark summit", 0.0), (4, "signup to win a million dollars", 0.0)  )
+).toDF("id", "line", "label")
+
+val tokenizer = new Tokenizer().setInputCol("line").setOutputCol("words")
+
+
+val hashingTF = new HashingTF().setInputCol(tokenizer.getOutputCol).setOutputCol("features").setNumFeatures(4096)
+
+val logisticReg = new LogisticRegression().setMaxIter(5).setRegParam(0.01)
+
+val pipeline = new Pipeline().setStages(Array(tokenizer, hashingTF, logisticReg))
+
+val logisticRegModel = pipeline.fit(text_data)
+
+// Now we can optionally save the fitted pipeline to disk
+logisticRegModel.write.overwrite().save("/tmp/logistic-regression-model")
+
+// We can also save this unfit pipeline to disk
+pipeline.write.overwrite().save("/tmp/ogistic-regression-pipeline")
+
+
+val prevModel = PipelineModel.load("/tmp/spark-logistic-regression-model")
+
+val prevPipeline = Pipeline.load("/tmp/ogistic-regression-pipeline")
+
+
+/* Listing 8-16 */
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.{HashingTF, Tokenizer}
+import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+
+val text_data = spark.createDataFrame(Seq((1, "Spark is a unified data analytics engine", 0.0), (2, "Spark is cool and it is fun to work with Spark", 0.0), (3, "There is a lot of exciting sessions at upcoming Spark summit", 0.0), (4, "signup to win a million dollars", 0.0)  )
+).toDF("id", "line", "label")
+
+val tokenizer = new Tokenizer().setInputCol("line").setOutputCol("words")
+
+val hashingTF = new HashingTF().setInputCol(tokenizer.getOutputCol).setOutputCol("features")
+
+val logisticReg = new LogisticRegression().setMaxIter(5)
+
+val pipeline = new Pipeline().setStages(Array(tokenizer, hashingTF, logisticReg))
+
+val paramGrid = new ParamGridBuilder().addGrid(hashingTF.numFeatures, Array(10, 100, 250)).addGrid(logisticReg.regParam, Array(0.1, 0.05)).build()
+
+
+val trainValidationSplit = new TrainValidationSplit() .setEstimator(pipeline) .setEvaluator(new BinaryClassificationEvaluator).setEstimatorParamMaps(paramGrid).setTrainRatio(0.8) 
+
+
+val model = trainValidationSplit.fit(text_data)
+
+// Make predictions on test data. model is the model with combination of parameters
+// that performed best.
+model.transform(test)
+  .select("features", "label", "prediction")
+  .show()
+
+/* Listing 8-17 */
+import org.apache.spark.ml.tuning.CrossValidator
+
+val crossValidator = new CrossValidator().setEstimator(pipeline).setEvaluator(new BinaryClassificationEvaluator).setEstimatorParamMaps(paramGrid).setNumFolds(2)
+
+val model = crossValidator.fit(text_data)
+
+/* Listing 8-18 */
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+
+
+val titanic_data = spark.read.format("csv").option("header", "true").option("inferSchema","true").load("<path>/chapter8/classification/data/train.csv")
+
+
+titanic_data.printSchema
+
+
+val titanic_data1 = titanic_data.select('Survived.as("label"), 'Pclass.as("ticket_class"), 'Sex.as("gender"), 'Age.as("age")).filter('age.isNotNull)
+
+val Array(training, test) = titanic_data1.randomSplit(Array(0.8, 0.2))
+
+println(s"training count: ${training.count}, test count: ${test.count}")
+
+val genderIndxr = new StringIndexer().setInputCol("gender").setOutputCol("genderIdx")
+
+val assembler = new VectorAssembler().setInputCols(Array("ticket_class", "genderIdx", "age")).setOutputCol("features")
+
+val logisticRegression = new LogisticRegression().setFamily("binomial")
+
+val pipeline = new Pipeline().setStages(Array(genderIndxr, assembler, logisticRegression))
+
+val model = pipeline.fit(traininng)
+
+val predictions = model.transform(test)
+
+val evaluator = new BinaryClassificationEvaluator()
+
+evaluator.evaluate(predictions)
+
+evaluator.getMetricName
+
+
+/* Listing 8-19 */
+
+import org.apache.spark.sql.functions._
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.feature.RFormula
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.mllib.evaluation.RegressionMetrics
+
+val house_data = spark.read.format("csv").option("header", "true").option("inferSchema","true").load("<path>/chapter8/regression/data/house-train.csv")
+
+val cols = Seq[String]("SalePrice", "LotArea",  "RoofStyle",
+"Heating", "1stFlrSF", "2ndFlrSF", "BedroomAbvGr", "KitchenAbvGr", "GarageCars", "TotRmsAbvGrd", "YearBuilt")
+val colNames = cols.map(n => col(n))
+
+val skinny_house_data = house_data.select(colNames:_*)
+
+val skinny_house_data1 = skinny_house_data.withColumn("TotalSF", col("1stFlrSF") + col("2ndFlrSF")).drop("1stFlrSF", "2ndFlrSF").withColumn("SalePrice", $"SalePrice".cast("double"))
+
+skinny_house_data1.describe("SalePrice").show
+
+val roofStyleIndxr = new StringIndexer().setInputCol("RoofStyle").setOutputCol("RoofStyleIdx").setHandleInvalid("skip")
+
+val heatingIndxr = new StringIndexer().setInputCol("Heating").setOutputCol("HeatingIdx").setHandleInvalid("skip")
+
+
+val Array(training, test) = skinny_house_data1.randomSplit(Array(0.8, 0.2))
+
+val linearRegression = new LinearRegression().setLabelCol("SalePrice")
+
+val assembler = new VectorAssembler().setInputCols(Array("LotArea", "RoofStyleIdx", "HeatingIdx", "LotArea", "BedroomAbvGr", "KitchenAbvGr", "GarageCars", "TotRmsAbvGrd", "YearBuilt", "TotalSF")).setOutputCol("features")
+
+
+val pipeline = new Pipeline().setStages(Array(roofStyleIndxr, heatingIndxr, assembler, linearRegression))
+
+
+val model = pipeline.fit(training)
+
+val predictions = model.transform(test)
+
+val evaluator = new RegressionEvaluator() .setLabelCol("SalePrice") .setPredictionCol("prediction") .setMetricName("rmse") 
+
+val rmse = evaluator.evaluate(predictions)
+
+val out = predictions.select($"prediction", $"SalePrice") .rdd.map(x => (x(0).asInstanceOf[Double], x(1).asInstanceOf[Double]))
+
+val metrics = new RegressionMetrics(out)
+println(s"MSE = ${metrics.meanSquaredError}")
+println(s"RMSE = ${metrics.rootMeanSquaredError}")
+println(s"R-squared = ${metrics.r2}")
+println(s"MAE = ${metrics.meanAbsoluteError}")
+println(s"Explained variance = ${metrics.explainedVariance}")
+
+/* Listing 8-20 */
+
+import org.apache.spark.mllib.evaluation.RankingMetrics
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.recommendation.ALS
+import org.apache.spark.ml.recommendation.ALSModel
+import org.apache.spark.ml.tuning.{ParamGridBuilder, CrossValidator}
+import org.apache.spark.sql.functions._
+
+
+val ratingsDF = spark.read.option("header", "true").option("inferSchema", "true").csv("<path>/chapter8/recommendation/data/ratings.csv").drop("timestamp")
+
+ratingsDF.count
+
+val ratingsByUserDF = ratingsDF.groupBy("userId").count()
+
+ratingsByUserDF.orderBy($"count".desc).show(10)
+
+println("# of rated movies: " +ratingsDF.select("movieId").distinct().count)
+println("# of users: " + ratingsByUserDF.count)
+
+// top rated movies
+val ratingsByMovieDF = ratingsDF.groupBy("movieId").count()
+ratingsByMovieDF.orderBy($"count".desc).show(10)
+
+
+val Array(trainingData, testData) = ratingsByUserDF.randomSplit(Array(0.8, 0.2))
+
+val als = new ALS().setRank(12).setMaxIter(10).setRegParam(0.03) .setUserCol("userId").setItemCol("movieId").setRatingCol("rating")
+
+// train the model
+val model = als.fit(trainingData)
+
+val predictions = model.transform(testData).na.drop
+
+val evaluator = new RegressionEvaluator().setMetricName("rmse") .setLabelCol("rating") .setPredictionCol("prediction")
+
+// only need two columns to calculate the RMSE (rating, prediction)
+val rmse = evaluator.evaluate(predictions)
+println(s"Root-mean-square error = $rmse")
+
+/* Listing 8-21 */
+// recommend top n movies for each user
+model.recommendForAllUsers(5).show(false)
+
+// active raters
+val activeMovieRaters = Seq((547), (564), (624), (15), (73)).toDF("userId")
+
+model.recommendForUserSubset(activeMovieRaters, 5).show(false)
+
+// recommend top n users for each movie
+val recMovies = model.recommendForAllItems(3)
+
+val moviesDF = spark.read.option("header", "true").option("inferSchema", "true").csv("<path>/chapter8/recommendation/data/movies.csv")
+
+val recMoviesWithInfoDF = recMovies.join(moviesDF, "movieId")
+
+recMoviesWithInfoDF.select("movieId", "title", "recommendations").show(5, false)
+
+// top rated movies
+val topRatedMovies = Seq((356), (296), (318), (593)).toDF("movieId")
+
+val recUsers =  model.recommendForItemSubset(topRatedMovies, 3)
+
+recUsers.join(moviesDF, "movieId").select("movieId", "title", "recommendations").show(false)
+
+/* Listing 8-22 */
+
+val paramGrid = new ParamGridBuilder().addGrid(als.regParam, Array(0.05, 0.15)) .addGrid(als.rank, Array(12,20)) .build
+
+val crossValidator = new CrossValidator().setEstimator(als) .setEvaluator(evaluator) .setEstimatorParamMaps(paramGrid) .setNumFolds(3)
+
+crossValidator.getEstimatorParamMaps.foreach(println)
+
+// this will take a while to run through 12 expirements
+val cvModel = crossValidator.fit(trainingData)
+
+cvModel.bestModel.parent.explainParams
+
+val predictions2 = cvModel.transform(testData).na.drop
+
+val evaluator2 = new RegressionEvaluator().setMetricName("rmse") .setLabelCol("rating").setPredictionCol("prediction") 
+
+val rmse2 = evaluator2.evaluate(predictions2)
+
+println("first rmse: " + rmse)
+
+val bestModel: Option[ALSModel] = cvModel.bestModel match {
+  case p: ALSModel => Some(p)
+  case _ => None
+}

@@ -1,0 +1,3 @@
+{"user":"user1","action":"login","page":"page1", "ts":"2017-09-06T08:08:53"}
+{"user":"user1","action":"click","page":"page2", "ts":"2017-09-06T08:10:11"}
+{"user":"user1","action":"send","page":"page3", "ts":"2017-09-06T08:11:10"}

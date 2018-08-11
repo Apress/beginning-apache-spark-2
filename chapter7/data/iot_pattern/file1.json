@@ -1,0 +1,4 @@
+{"rack":"rack1","temperature":99.5,"ts":"2017-06-02T08:01:01"}
+{"rack":"rack1","temperature":100.5,"ts":"2017-06-02T08:02:02"}
+{"rack":"rack1","temperature":98.3,"ts":"2017-06-02T08:02:29"}
+{"rack":"rack1","temperature":102.0,"ts":"2017-06-02T08:02:44"}

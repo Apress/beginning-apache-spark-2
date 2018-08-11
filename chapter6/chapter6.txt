@@ -1,0 +1,317 @@
+/* Listing 6-1 */
+object NetworkWordCount {
+  def main(args: Array[String]) {
+
+    // Create the context with a 1 second batch size
+    val sparkConf = new SparkConf().setAppName("NetworkWordCount")
+    val ssc = new StreamingContext(sparkConf, Seconds(1))
+
+    val host = "localhost"
+    val port = 9999
+
+    val lines = ssc.socketTextStream(host, port, StorageLevel.MEMORY_AND_DISK_SER)
+    val words = lines.flatMap(_.split(" "))
+    val wordCounts = words.map(x => (x, 1)).reduceByKey(_ + _)
+
+    wordCounts.print()
+
+    ssc.start()
+    ssc.awaitTermination()
+  }
+}
+
+
+/* Listing 6-2 */
+val mobileDataDF = spark.read.json("<path>/chapter6/data/mobile")
+mobileDataDF.printSchema
+
+
+/* Listing 6-3 */
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val mobileDataSchema = new StructType() .add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
+
+
+/* Listing 6-4 */
+val mobileSSDF = spark.readStream.schema(mobileDataSchema).json(("<path>/chapter6/data/input")
+
+
+mobileSSDF.isStreaming
+
+val actionCountDF = mobileSSDF.groupBy(window($"ts", "10 minutes"),$"action").count
+
+
+val mobileConsoleSQ = actionCountDF.writeStream.format("console").option("truncate", "false").outputMode("complete").start()
+
+/* Listing 6-7 */
+mobileConsoleSQ.status
+mobileConsoleSQ.lastProgress
+
+/* Listing 6-9 */
+mobileSQ.awaitTermination()
+
+mobileSQ.stop
+
+
+// stop all streams
+for(qs <- spark.streams.active) { println(s"Stop streaming query: ${qs.name} - active: ${qs.isActive}"); if (qs.isActive) {qs.stop } }
+
+for(qs <- spark.streams.active) {
+    println(s"Stop streaming query: ${qs.name} - active: ${qs.isActive}")
+    if (qs.isActive) {
+      qs.stop  
+    }
+}
+
+
+/* Listing 6-10 */
+import org.apache.spark.sql.functions._
+val cleanMobileSSDF = mobileSSDF.filter($"action" === "open" || $"action" === "close").select($"id", upper($"action"), $"ts")
+
+cleanMobileSSDF.createOrReplaceTempView("clean_mobile")
+spark.sql("select count(*) from clean_mobile")
+
+
+/* Listing 6-10 */
+import org.apache.spark.sql.functions.expr
+
+val tempDataDF = spark.readStream. ...
+val loadDataDF = spark.readStream. ...
+
+val tempDataWatermarkDF = tempDataDF.withWaterMark("temp_taken_time", "1 hour")
+val loadDataWatermarkDF = loadDataDF.withWaterMark("load_taken_time", "2 hours")
+
+tempWithLoadDataDF = tempDataWatermarkDF.join(loadDataWatermarkDF, 
+   expr(""" temp_location_id = load_location_id AND
+            load_taken_time >= temp_taken_time AND
+            load_taken_time <= temp_taken_time + interval 1 hour
+        """)
+)
+
+
+/* Listing 6-11 */
+val socketDF = spark.readStream.format("socket").option("host", "localhost").option("port", "9999").load()
+
+val words = socketDF.as[String].flatMap(_.split(" "))
+val wordCounts = words.groupBy("value").count()
+val query = wordCounts.writeStream .outputMode("complete") .format("console") .start()
+
+/* Listing 6-13 */
+query.stop
+
+/* Listing 6-14 */
+val rateSourceDF = spark.readStream.format("rate").option("rowsPerSecond","10").load()
+
+
+val rateQuery = rateSourceDF.writeStream.outputMode("update").format("console").option("truncate", "false").start
+
+/* Listing 6-15 */
+import org.apache.spark.sql.functions._
+val rateSourceDF2 = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions",3).load()
+
+
+val rateWithPartitionDF = rateSourceDF2.withColumn("partition_id", spark_partition_id())
+
+val rateWithPartitionQuery = rateWithPartitionDF.writeStream.outputMode("update").format("console").option("truncate", "false").start
+
+
+/* Listing 6-16 */
+val mobileSSDF = spark.readStream.schema(mobileDataSchema).json("<directory name>")
+
+val mobileSSDF =  spark.readStream.schema(mobileDataSchema). option("maxFilesPerTrigger", 5).json("<directory name>")
+
+val mobileSSDF =  spark.readStream.schema(mobileDataSchema). option("latestFirst", "true").json("<directory name>")
+
+/* Listing 6-17 */
+
+./bin/spark-shell --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.0
+
+import org.apache.spark.sql.functions._
+
+val pvDF = spark.readStream.format("kafka").option("kafka.bootstrap.servers","localhost:9092").option("subscribe", "pageviews").option("startingOffsets", "earliest").load()
+
+pvDF.printSchema
+
+/* Listing 6-18 */
+val pvValueDF = pvDF.selectExpr("partition","offset","CAST(key AS STRING)", "CAST(value AS STRING)").as[(String, Long, String, String)]
+
+
+/* Listing 6-19 */
+val kafkaDF = spark.readStream.format("kafka") .option("kafka.bootstrap.servers","server1:9092,server2:9092") .option("subscribe", "topic1,topic2").load()
+
+val kafkaDF = spark.readStream.format("kafka") .option("kafka.bootstrap.servers","server1:9092,server2:9092") .option("subscribePattern", "topic*").load()
+
+// reading from particular offset
+val pvDF = spark.readStream.format("kafka").option("kafka.bootstrap.servers","localhost:9092").option("subscribe", "pageviews").option("startingOffsets", """ {"pageviews": {"0":51} } """).load()
+
+
+/* Listing 6-20 */
+
+bin/spark-shell --jars <path>/streaming_sources-assembly-0.0.1.jar
+
+val provideClassName = "org.structured_streaming_sources.wikedit.WikiEditSourceV2"
+
+val wikiEditDF = spark.readStream.format(provideClassName).option("channel", "#en.wikipedia").load()
+
+wikiEditDF.printSchema
+
+val wikiEditSmallDF = wikiEditDF.select("timestamp", "user", "channel", "title")
+
+val wikiEditQS = wikiEditSmallDF.writeStream.format("console").option("truncate", "false").start()
+
+val wikiEditQS = wikiEditSmallDF.writeStream.format("memory").queryName("wikiedit").start()
+
+
+wikiEditQS.stop
+
+/* Listing 6-21 */
+val rateSourceDF = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+val rateSQ = rateSourceDF.writeStream.outputMode("append").format("json").option("path", "/Users/tmp/ss/output").option("checkpointLocation", "/tmp/ss/cp").start()
+
+rateSQ.stop
+
+
+/* Listing 6-22 */
+import org.apache.spark.sql.functions._
+
+val ratesSinkDF = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+
+val ratesSinkForKafkaDF = ratesSinkDF.select($"value".cast("string") as "key", to_json(struct("timestamp","value")) as "value")
+
+
+//val rateSinkSQ = rateForKafkaDF.writeStream.outputMode("append").format("console").option("truncate",false).start()
+
+val rateSinkSQ = ratesSinkForKafkaDF.writeStream.outputMode("append").format("kafka").option("kafka.bootstrap.servers","localhost:9092").option("topic","rates").option("checkpointLocation", "/tmp/ss/cp").start()
+
+rateSinkSQ.stop
+
+
+// reading back form Kafka
+val ratesSourceDF = spark.readStream.format("kafka").option("kafka.bootstrap.servers","localhost:9092").option("subscribe", "rates").option("startingOffsets", "earliest").option("maxOffsetsPerTrigger", 100).load()
+
+val ratesSourceKafkaDF = ratesSourceDF.selectExpr("partition","offset","CAST(key AS STRING)", "CAST(value AS STRING)").as[(String, Long, String, String)]
+
+
+val ratesSourceSQ = ratesSourceKafkaDF.writeStream.outputMode("append").format("console").option("truncate", "false").option("numRows", 200).start
+
+ratesSourceSQ.stop
+
+val ratesSourceSQ = ratesKafkaDF.writeStream.outputMode("append").format("memory").queryName("rates").option("truncate", "false").start
+
+spark.sql("select * from rates").show(100, false)
+
+spark.sql("select count(*) from rates").show(100, false)
+
+ratesSinkSQ.stop
+
+/* Listing 6-23 */
+import org.apache.spark.sql.{ForeachWriter,Row}
+
+class ConsoleWriter(private var pId:Long = 0, private var ver:Long = 0) extends ForeachWriter[Row] {
+    def open(partitionId: Long, version: Long): Boolean = {
+       pId = partitionId
+       ver = version
+       println(s"open => ($partitionId, $version)")
+       true
+    }
+ 
+    def process(row: Row) = {
+      println(s"writing => $row")
+    }
+ 
+    def close(errorOrNull: Throwable): Unit = {
+      println(s"close => ($pId, $ver)") 
+    }
+}
+
+val ratesSourceDF = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+val rateSQ = ratesSourceDF.writeStream.foreach(new ConsoleWriter).start()
+
+rateSQ.stop
+
+/* Listing 6-24 */
+val ratesDF  = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+ratesDF .writeStream.outputMode("append").format("console").option("truncate",false).option("numRows",50).start()
+
+/* Listing 6-25 */
+val ratesDF  = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+val ratesSQ = ratesDF.writeStream.outputMode("append").format("memory").queryName("rates").start()
+
+spark.sql("select * from rates").show(10,false)
+
+spark.sql("select count(*) from rates").show
+
+ratesSQ.stop
+
+
+/* Listing 6-26 */
+
+val ratesDF  = spark.readStream.format("rate").option("rowsPerSecond","10").option("numPartitions","2").load()
+
+val ratesOddEvenDF = ratesDF.withColumn("even_odd", $"value" % 2 === 0)
+
+val ratesSQ = ratesOddEvenDF.writeStream.outputMode("complete").format("console").option("truncate",false).option("numRows",50).start()
+
+ratesSQ.stop
+
+
+/* Listing 6-27 */
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val mobileDataSchema = new StructType().add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false) 
+
+val mobileDF = spark.readStream.schema(mobileDataSchema) .json("<path>/chapter6/data/input") 
+
+val actionCountDF = mobileDF.groupBy($"action").count 
+
+val completeModeSQ = actionCountDF.writeStream.format("console") .option("truncate", "false") .outputMode("complete").start() 
+
+val updateModeSQ = actionCountDF.writeStream.format("console") .option("truncate", "false") .outputMode("complete").start()
+
+
+/* Listing 6-28 */
+
+val actionCountSQ = actionCountDF.writeStream.format("console").outputMode("append").start()
+
+
+/* Listing 6-29 */
+
+import org.apache.spark.sql.streaming.Trigger
+
+val ratesDF  = spark.readStream.format("rate").option("rowsPerSecond","3").option("numPartitions","2").load()
+
+val ratesSQ = ratesDF.writeStream.outputMode("append").format("console").option("numRows",50).option("truncate",false).trigger(Trigger.ProcessingTime("3 seconds")).start()
+
+import scala.concurrent.duration._
+val ratesSQ = ratesDF.writeStream.outputMode("append").format("console").option("numRows",50).option("truncate",false).trigger(Trigger.ProcessingTime(3.seconds)).start()
+
+
+
+/* Listing 6-30 */
+mobileDF.writeStream.outputMode("append").format("console").option("numRows",50).option("truncate",false).trigger(Trigger.Once()).start()
+
+mobileSQ.stop
+
+/* Listing 6-31 */
+
+import org.apache.spark.sql.streaming.Trigger
+
+val ratesDF  = spark.readStream.format("rate").option("numPartitions","3").load()
+
+// two long running tasks
+val rateSQ = ratesDF.writeStream.format("console").trigger(Trigger.Continuous("2 second")).start
+
+rateSQ.stop
+
+
+
+
+
+

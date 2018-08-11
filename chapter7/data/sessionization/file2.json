@@ -1,0 +1,5 @@
+{"user":"user2","action":"login", "page":"page1", "ts":"2017-09-06T08:44:12"}
+{"user":"user2","action":"view", "page":"page7", "ts":"2017-09-06T08:45:33"}
+{"user":"user2","action":"view", "page":"page8", "ts":"2017-09-06T08:55:58"}
+{"user":"user2","action":"view", "page":"page6", "ts":"2017-09-06T09:10:58"}
+{"user":"user2","action":"logout","page":"page9", "ts":"2017-09-06T09:16:19"}

@@ -1,0 +1,279 @@
+/* Listing 7-3 */
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+
+val mobileDataSchema = new StructType() .add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
+
+
+val mobileSSDF = spark.readStream.schema(mobileDataSchema) .json("<path>/chapter7/data/input")
+
+
+val windowCountDF = mobileSSDF.groupBy(window($"ts", "10 minutes")).count
+
+val mobileConsoleSQ = windowCountDF.writeStream.format("console").option("truncate", "false").outputMode("complete").start()
+
+mobileConsoleSQ.top
+
+windowCountDF.printSchema
+
+/* Listing 7-4 */
+
+val windowActionCountDF = mobileSSDF.groupBy(window($"ts", "10 minutes"), $"action").count
+
+windowActionCountDF.writeStream.format("console").option("truncate", "false").outputMode("complete").start()
+
+/* Listing 7-6 */
+
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val iotDataSchema = new StructType() .add("rack", StringType, false) .add("temperature", DoubleType, false) .add("ts", TimestampType, false)
+
+val iotSSDF = spark.readStream.schema(iotDataSchema).json("<path>/chapter7/data/iot")
+
+val iotAvgDF = iotSSDF.groupBy(window($"ts", "10 minutes", "5 minutes")).agg(avg("temperature") as "avg_temp")
+
+
+val iotMemorySQ = iotAvgDF.writeStream.format("memory").queryName("iot").outputMode("complete").start()
+
+spark.sql("select * from iot").orderBy($"window.start").show(false)
+
+iotMemorySQ.stop
+
+
+/* Listing 7-7 */
+
+val iotAvgByRackDF = iotSSDF.groupBy(window($"ts", "10 minutes", "5 minutes"), $"rack").agg(avg("temperature") as "avg_temp")
+
+
+val iotByRackConsoleSQ = iotAvgByRackDF.writeStream.format("memory").queryName("iot_rack").outputMode("complete").start()
+
+spark.sql("select * from iot_rack").orderBy($"rack", $"window.start").show(false)
+
+iotByRackConsoleSQ.stop()
+
+/* Listing 7-9 */
+
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val mobileDataSchema = new StructType() .add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
+
+
+val mobileSSDF = spark.readStream.schema(mobileDataSchema).json("<path>/chapter7/data/input")
+
+val windowCountDF = mobileSSDF.withWatermark("ts", "10 minutes").groupBy(window($"ts", "10 minutes"), $"action").count
+
+val mobileMemorySQ = windowCountDF.writeStream.format("console").option("truncate", "false").outputMode("update").start()
+
+
+
+/* Listing 7-12 */
+import org.apache.spark.sql.streaming.GroupState
+
+case class RackInfo(rack:String, temperature:Double, ts:java.sql.Timestamp)
+
+case class RackState(var rackId:String, var highTempCount:Int, var status:String, var lastTS:java.sql.Timestamp) 
+
+/* Listing 7-13 */
+import org.apache.spark.sql.streaming.GroupState
+def updateRackState(rackState:RackState, rackInfo:RackInfo) : RackState = {
+   val lastTS = Option(rackState.lastTS).getOrElse(rackInfo.ts)
+   val withinTimeThreshold = (rackInfo.ts.getTime - lastTS.getTime) <= 60000
+   val meetCondition = if (rackState.highTempCount < 1) true else withinTimeThreshold
+   val greaterThanEqualTo100 = rackInfo.temperature >= 100.0
+   (greaterThanEqualTo100, meetCondition) match {
+     case (true, true) => {
+        rackState.highTempCount = rackState.highTempCount + 1
+        rackState.status = if (rackState.highTempCount >= 3) "Warning" else "Normal"        
+     }
+     case _ => {
+       rackState.highTempCount = 0
+       rackState.status = "Normal"
+     }
+   }
+   rackState.lastTS = rackInfo.ts
+   rackState
+}
+
+
+def updateAcrossAllRackStatus(rackId:String, inputs:Iterator[RackInfo],
+                     oldState: GroupState[RackState]) : RackState = {  
+   var rackState = if (oldState.exists) oldState.get else RackState(rackId, 5, "", null)
+
+   inputs.toList.sortBy(_.ts.getTime).foreach( input => {
+     rackState = updateRackState(rackState, input)
+     oldState.update(rackState)
+   })
+   rackState
+}
+
+/* Listing 7-14 */
+import org.apache.spark.sql.streaming.{GroupStateTimeout, OutputMode}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val iotDataSchema = new StructType() .add("rack", StringType, false) .add("temperature", DoubleType, false) .add("ts", TimestampType, false)
+
+
+val iotSSDF = spark.readStream.schema(iotDataSchema).json("<path>/chapter7/data/input")
+
+val iotPatternDF = iotSSDF.as[RackInfo].groupByKey(_.rack).mapGroupsWithState[RackState,RackState](GroupStateTimeout.NoTimeout)(updateAcrossAllRackStatus)
+
+
+val iotPatternSQ = iotPatternDF.writeStream.format("console").outputMode("update").start()
+
+iotPatternSQ.stop
+
+/* Listing 7-16 */
+case class UserActivity(user:String, action:String, page:String, ts:java.sql.Timestamp) 
+case class UserSessionState(var user:String, var status:String, var startTS:java.sql.Timestamp, var endTS:java.sql.Timestamp, var lastTS:java.sql.Timestamp, var numPage:Int)
+
+case class UserSessionInfo(userId:String, start:java.sql.Timestamp, end:java.sql.Timestamp,  numPage:Int)
+
+/* Listing 7-17 */
+import org.apache.spark.sql.streaming.GroupState
+import scala.collection.mutable.ListBuffer
+
+def updateUserActivity(userSessionState:UserSessionState, userActivity:UserActivity) : UserSessionState = {
+    println(s"updateUserActivity: ${userActivity}")
+    userActivity.action match {
+      case "login" => {
+        userSessionState.startTS = userActivity.ts
+        userSessionState.status = "Online"
+      }
+      case "logout" => {
+        userSessionState.endTS = userActivity.ts
+        userSessionState.status = "Offline"
+      }
+      case _ => {
+        userSessionState.numPage += 1
+        userSessionState.status = "Active"
+      }
+    }
+    userSessionState.lastTS = userActivity.ts
+    userSessionState
+}
+
+def updateAcrossAllUserActivities(user:String, inputs:Iterator[UserActivity],
+                     oldState: GroupState[UserSessionState]) : Iterator[UserSessionInfo] = {  
+
+   
+   println(s"user $user - timeout: ${oldState.hasTimedOut}")
+   println(s"user:$user - watermark: ${new java.sql.Timestamp(oldState.getCurrentWatermarkMs)}")
+   println(s"user $user - old state exists: ${oldState.exists}")
+   
+
+   var userSessionState = if (oldState.exists) oldState.get else UserSessionState(user, "", 
+    new java.sql.Timestamp(System.currentTimeMillis), null, null, 0)
+
+   var output = ListBuffer[UserSessionInfo]()
+
+   inputs.toList.sortBy(_.ts.getTime).foreach( userActivity => {
+     userSessionState = updateUserActivity(userSessionState, userActivity)
+     oldState.update(userSessionState)
+
+     if (userActivity.action == "login") {
+       output += UserSessionInfo(user, userSessionState.startTS,
+                                 userSessionState.endTS, 0)
+     }
+   })
+
+   val sessionTimedOut = oldState.hasTimedOut
+   val sessionEnded = !Option(userSessionState.endTS).isEmpty
+   val shouldOutput = sessionTimedOut || sessionEnded
+   
+   println(s"key:$user, sessionTimedOut:$sessionTimedOut, sessionEnded:$sessionEnded, shouldOutput:$shouldOutput")
+
+   shouldOutput match {
+    case true => {
+        if (sessionTimedOut) {
+            userSessionState.endTS = new java.sql.Timestamp(oldState.getCurrentWatermarkMs)
+        } 
+        oldState.remove()  
+        output += UserSessionInfo(user, userSessionState.startTS,
+                                 userSessionState.endTS, userSessionState.numPage)
+
+    }
+    case _ => {
+      // extend sesion
+      oldState.update(userSessionState)      
+      println(s"user: $user, setting time out to 30 from ${userSessionState.lastTS}")
+      oldState.setTimeoutTimestamp(userSessionState.lastTS.getTime ,"30 minutes")
+      println(s"user:$user - check watermark after setting timeout: ${new java.sql.Timestamp(oldState.getCurrentWatermarkMs)}")      
+    }
+   }
+
+   output.iterator 
+}
+
+/* Listing 7-18 */
+import org.apache.spark.sql.streaming.{GroupStateTimeout, OutputMode}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val userActivitySchema = new StructType().add("user", StringType, false) .add("action", StringType, false) .add("page", StringType, false) .add("ts", TimestampType, false)
+
+val userActivityDF = spark.readStream.schema(userActivitySchema).json("<path>/chapter7/data/input")
+
+val userActivityDS = userActivityDF.withWatermark("ts", "30 minutes").as[UserActivity]
+
+val userSessionDS = userActivityDS.groupByKey(_.user).flatMapGroupsWithState[UserSessionState,UserSessionInfo](OutputMode.Append,GroupStateTimeout.EventTimeTimeout)(updateAcrossAllUserActivities)
+
+val userSessionSQ = userSessionDS.writeStream.format("console").option("truncate",false).outputMode("append").start()
+
+
+userSessionSQ.stop
+
+/* Listing 7-19 */
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+
+val mobileDataSchema = new StructType().add("id", StringType, false) .add("action", StringType, false) .add("ts", TimestampType, false)
+
+// mobileDataSchema is defined in previous example
+val mobileDupSSDF = spark.readStream.schema(mobileDataSchema).json("<path>/chapter7/data/deduplication")
+
+val windowCountDupDF = mobileDupSSDF.withWatermark("ts", "10 minutes").dropDuplicates("id", "ts") .groupBy("id").count
+
+val mobileMemoryDupSQ = windowCountDupDF.writeStream.format("console") .option("truncate", "false") .outputMode("update") .start()
+
+
+/* Listing 7-20 */
+val userSessionSQ = userSessionDS.writeStream.format("console").option("truncate",false).option("checkpointLocation","/reliable/location").outputMode("append").start()
+
+val userSessionSQ = userSessionDS.writeStream.format("console").option("truncate",false).option("checkpointLocation","/tmp/spark").outputMode("append").start()
+
+
+/* Listing 7-21 */
+userSessionSQ.status
+
+
+/* Listing 7-22 */
+import org.apache.spark.sql.streaming.StreamingQueryListener
+import org.apache.spark.sql.streaming.StreamingQueryListener.{QueryStartedEvent, QueryProgressEvent, QueryTerminatedEvent}
+
+class ConsoleStreamingQueryListener extends StreamingQueryListener {
+    override def onQueryStarted(event: QueryStartedEvent): Unit = {
+      println(s"streaming query started: ${event.id} - ${event.name} - ${event.runId}")
+    }
+
+    override def onQueryProgress(event: QueryProgressEvent): Unit = {
+      println(s"streaming query progess: ${event.progress}")
+    }
+
+    override def onQueryTerminated(event: QueryTerminatedEvent): Unit = {
+      println(s"streaming query terminated: ${event.id} - ${event.runId}")
+    }
+}
+
+/* Listing 7-23 */
+val listener = new ConsoleStreamingQueryListener
+
+// to register 
+spark.streams.addListener(listener)
+
+// to unregister
+spark.streams.removeListener(listener)
+
