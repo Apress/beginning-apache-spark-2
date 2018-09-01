@@ -32,7 +32,11 @@ peopleDF.printSchema
 peopleDF.show
 
 /* Listing 4-6 */
+<<<<<<< HEAD
 spark.range(5).toDF(“num”).show
+=======
+val df1 = spark.range(5).toDF(“num”).show
+>>>>>>> 91fa421cc1cc5487e2db29672c975469435b1492
 
 spark.range(5,10).toDF("num").show
 spark.range(5,15,2).toDF("num").show

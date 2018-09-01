@@ -118,7 +118,11 @@ employeeDF.createOrReplaceTempView("employees")
 deptDF.createOrReplaceTempView("departments")
 
 /* Listing 5-21 */
+<<<<<<< HEAD
 val joinExpression = employeeDF.col("dept_no") === deptDF.col("id")
+=======
+val deptJoinExpression = employeeDF.col("dept_no") === deptDF.col("id")
+>>>>>>> 91fa421cc1cc5487e2db29672c975469435b1492
 
 employeeDF.join(deptDF, joinExpression, "inner").show
 
@@ -360,10 +364,17 @@ val twoStatesSummary = flight_summary.select('origin_state, 'origin_city, 'count
 twoStatesSummary.show
 
 
+<<<<<<< HEAD
 twoStatesSummary.rollup('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
 
 /* Listing 5-49 */
 twoStatesSummary.cube('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
+=======
+twoStateSummary.rollup('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
+
+/* Listing 5-49 */
+twoStateSummary.cube('origin_state, 'origin_city).agg(sum("count") as "total").orderBy('origin_state.asc_nulls_last, 'origin_city.asc_nulls_last).show
+>>>>>>> 91fa421cc1cc5487e2db29672c975469435b1492
 
 
 /* Listing 5-50 */
